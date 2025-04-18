@@ -2,26 +2,50 @@
 # std::regexp symbols that are exported by cppyy.
 # See also: https://github.com/wlav/cppyy/issues/227
 from xgboost import XGBClassifier;
-from ROOT import RDataFrame, gSystem, TMVA;
+import ROOT;
 
-from json import load;
 import numpy as np;
+import json;
  
+def ConvertData(item):
+    # Exits if current item is a number.
+    if ( type(item) == float or type(item) == int ): return item;
+
+    # Converts ROOT Vectors to numpy arrays and returns.
+    if ( type(item) != list and type(item) != np.ndarray ): 
+        print(type(item));
+        return np.array([x for x in item]);
+
+    newItem = [];
+    for i,_ in enumerate(item): newItem.append(ConvertData(item[i]));
+
+    # Returns lists or arrays inside item.
+    return newItem;
+
 def LoadData(signalFile, backgroundFile):
     # Read data from ROOT files (training).
-    data_sig = RDataFrame("tree", signalFile).AsNumpy();
-    data_bkg = RDataFrame("tree", backgroundFile).AsNumpy();
+    data_sig = ROOT.RDataFrame("tree", signalFile).AsNumpy();
+    data_bkg = ROOT.RDataFrame("tree", backgroundFile).AsNumpy();
 
-    with open("variables.json", "r") as file: allVariables = load(file);
+    with open("variables.json", "r") as file: allVariables = json.load(file);
 
     # TODO: Convert variables values to float (RVec<Int>).
 
-    # [np.asarray(e) for e in vec1]
+    # Getting variable data from data frame.
+    sigData = np.vstack([data_sig[var] for var in allVariables[0]]).T;
+    bkgData = np.vstack([data_bkg[var] for var in allVariables[1]]).T;
+
+    print(sigData, "\n\n\n");
+    sigData = ConvertData(sigData);
+    print("\n\n\n", sigData);
+    exit();
+
     # Convert inputs to format readable by machine learning tools
-    x_sig = np.vstack([data_sig[var] for var in allVariables[0]]).T;
-    x_bkg = np.vstack([data_bkg[var] for var in allVariables[1]]).T;
+    x_sig = np.array([x for x in sigData]);
+    x_bkg = np.array([x for x in bkgData]);
+
     x = np.vstack([x_sig, x_bkg]);
- 
+
     # Create labels
     num_sig = x_sig.shape[0];
     num_bkg = x_bkg.shape[0];
@@ -36,7 +60,7 @@ def LoadData(signalFile, backgroundFile):
  
 if __name__ == "__main__":
     # Loading dictionaries.
-    gSystem.Load("libdict.so");
+    ROOT.gSystem.Load("libdict.so");
 
     # Load data.
     x, y, w = LoadData("train_signal.root", "train_background.root");
@@ -47,5 +71,5 @@ if __name__ == "__main__":
  
     # Save model in TMVA format
     print("Training done on ", x.shape[0], "events. Saving model in model.root");
-    TMVA.Experimental.SaveXGBoost(bdt, "myBDT", "model.root", num_inputs=x.shape[1]);
+    ROOT.TMVA.Experimental.SaveXGBoost(bdt, "myBDT", "model.root", num_inputs=x.shape[1]);
 
