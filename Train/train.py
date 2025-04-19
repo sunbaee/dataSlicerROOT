@@ -48,10 +48,7 @@ def LoadData(signalFile, backgroundFile):
     xSig = ConvertData(sigData);
     xBkg = ConvertData(bkgData);
 
-    print(xSig, "\n\n\n", xBkg);
-
-    #xSig = np.array([x for x in sigData]);
-    #xBkg = np.array([x for x in bkgData]);
+    # TODO: Adjust inhomogeneous arrays.
 
     x = np.vstack([xSig, xBkg]);
 
