@@ -32,6 +32,28 @@ def ConvertData(item):
     # Vector Type is a Lorentz Vector.
     return np.asarray([np.asarray([x.Px(), x.Py(), x.Pz(), x.E()]) for x in item]);
 
+def Flatten(listSig, listBkg):
+    numVariables = len(listSig);
+    if (numVariables != len(listBkg)): return None;
+
+    oldLists = [listSig, listBkg]
+    newLists = [[], []];
+    for i,_ in enumerate(listSig):
+        curType = type(listSig[i]);
+        if (curType != type(listBkg[i])): return None;
+        
+        if (curType != np.ndarray): 
+            for j, curList in enumerate(newLists): curList.append(oldLists[j][i]);
+            continue;
+
+        maxLength = max(len(listSig[i]), len(listBkg[i]));
+        for j, curList in enumerate(newLists):
+            for element in oldLists[j][i][: maxLength - 1]: 
+                # TODO: Correction: it can have arrays inside arrays
+                curList.append(element);
+    
+    return np.asarray(newLists[0]), np.asarray(newLists[1]);
+
 # Loads data from root files
 def LoadData(signalFile, backgroundFile):
     # Read data from ROOT files (training).
@@ -45,10 +67,13 @@ def LoadData(signalFile, backgroundFile):
     bkgData = np.vstack([data_bkg[var] for var in allVariables[1]]).T;
 
     # Convert inputs to format readable by machine learning tools
-    xSig = ConvertData(sigData);
-    xBkg = ConvertData(bkgData);
+    xSigRaw, xBkgRaw = ConvertData(sigData), ConvertData(bkgData);
 
-    # TODO: Adjust inhomogeneous arrays.
+    flatDatas = Flatten(xSigRaw, xBkgRaw);
+    if (not flatDatas): return None; 
+    xSig, xBkg = flatDatas;
+
+    print(xSig, "\n\n", xBkg);
 
     x = np.vstack([xSig, xBkg]);
 
@@ -69,7 +94,10 @@ if __name__ == "__main__":
     gSystem.Load("libdict.so");
 
     # Load data.
-    x, y, w = LoadData("train_signal.root", "train_background.root");
+    trainData = LoadData("train_signal.root", "train_background.root");
+    if (not trainData): print("An error occurred."); exit();
+
+    x, y, w = trainData;
  
     # Fit xgboost model
     bdt = XGBClassifier(max_depth=3, n_estimators=500);
