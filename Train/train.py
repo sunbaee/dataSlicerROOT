@@ -49,16 +49,24 @@ def Flatten(listSig, listBkg):
         maxLength = max(len(listSig[i]), len(listBkg[i]));
         for j, curList in enumerate(newLists):
             for element in oldLists[j][i][: maxLength - 1]: 
-                # TODO: Correction: it can have arrays inside arrays
-                curList.append(element);
+                # TODO: can have arrays here.
+                print(element);
+                if (element != np.ndarray): curList.append(element); continue;
+                
+                for k in element: 
+                    curList.append(k);
     
+#    print(newLists[0], "\n\n", newLists[1]);
     return np.asarray(newLists[0]), np.asarray(newLists[1]);
 
 # Loads data from root files
 def LoadData(signalFile, backgroundFile):
+    print(">>> Reading data...")
     # Read data from ROOT files (training).
     data_sig = RDataFrame("tree", signalFile).AsNumpy();
     data_bkg = RDataFrame("tree", backgroundFile).AsNumpy();
+
+    print(">>> Data loaded.")
 
     with open("variables.json", "r") as file: allVariables = json.load(file);
 
@@ -68,10 +76,12 @@ def LoadData(signalFile, backgroundFile):
 
     # Convert inputs to format readable by machine learning tools
     xSigRaw, xBkgRaw = ConvertData(sigData), ConvertData(bkgData);
+    print("Converted");
 
     flatDatas = Flatten(xSigRaw, xBkgRaw);
     if (not flatDatas): return None; 
     xSig, xBkg = flatDatas;
+    print("Flattened.")
 
     print(xSig, "\n\n", xBkg);
 
